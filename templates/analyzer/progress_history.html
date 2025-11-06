@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Progress History{% endblock %}
+
+{% block content %}
+<style>
+    .history-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .date-header {
+        background: var(--color-primary);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .habit-history-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .habit-history-item:last-child {
+        border-bottom: none;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        .history-card {
+            background: var(--color-surface);
+        }
+        
+        .habit-history-item {
+            border-bottom-color: rgba(255,255,255,0.1);
+        }
+    }
+</style>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>📅 Progress History</h2>
+        <p class="text-muted">Your habit completion history</p>
+    </div>
+</div>
+
+<!-- Streak Info -->
+{% if streak %}
+<div class="history-card">
+    <h4>🔥 Your Stats</h4>
+    <div class="row text-center">
+        <div class="col-md-4">
+            <h3 class="text-primary">{{ streak.current_streak }}</h3>
+            <p class="text-muted">Current Streak</p>
+        </div>
+        <div class="col-md-4">
+            <h3 class="text-success">{{ streak.longest_streak }}</h3>
+            <p class="text-muted">Longest Streak</p>
+        </div>
+        <div class="col-md-4">
+            <h3 class="text-info">{{ streak.total_habits_completed }}</h3>
+            <p class="text-muted">Total Completed</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- History by Date -->
+{% for date, habits in progress_by_date.items %}
+<div class="history-card">
+    <div class="date-header">
+        <strong>{{ date|date:"F d, Y (l)" }}</strong>
+    </div>
+    
+    {% for habit in habits %}
+        <div class="habit-history-item d-flex align-items-start gap-3">
+            <span class="fs-5">
+                {% if habit.completed %}✅{% else %}❌{% endif %}
+            </span>
+            <div class="flex-grow-1">
+                <strong>{{ habit.habit_text }}</strong>
+                {% if habit.notes %}
+                    <p class="mb-0 mt-1 text-muted small">
+                        <em>{{ habit.notes }}</em>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% empty %}
+    <div class="alert alert-info">
+        No progress history yet. Start tracking your habits today!
+    </div>
+{% endfor %}
+
+<!-- Back Button -->
+<div class="text-center mt-4">
+    <a href="{% url 'progress_tracker' report_id=blood_report.id %}" class="btn btn-primary">
+        ← Back to Tracker
+    </a>
+</div>
+{% endblock %}

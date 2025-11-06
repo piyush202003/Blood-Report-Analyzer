@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Progress Tracker{% endblock %}
+
+{% block content %}
+<style>
+    .progress-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, var(--color-primary), #1d6b75);
+        color: white;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-box h2 {
+        font-size: 2.5rem;
+        margin: 0;
+        font-weight: bold;
+    }
+    
+    .stat-box p {
+        margin: 0;
+        opacity: 0.9;
+    }
+    
+    .habit-item {
+        background: #f8f9fa;
+        border-left: 4px solid var(--color-primary);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    
+    .habit-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+    
+    .habit-item.completed {
+        border-left-color: #10b981;
+        background: #f0fdf4;
+    }
+    
+    .habit-checkbox {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+    }
+    
+    .progress-bar-custom {
+        height: 30px;
+        border-radius: 15px;
+        font-weight: 600;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        .progress-card {
+            background: var(--color-surface);
+        }
+        
+        .habit-item {
+            background: rgba(255,255,255,0.05);
+            color: var(--color-text);
+        }
+        
+        .habit-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .habit-item.completed {
+            background: rgba(16, 185, 129, 0.15);
+        }
+    }
+</style>
+
+<!-- Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>📊 Daily Habits Progress Tracker</h2>
+        <p class="text-muted">Track your daily habits and build healthy routines</p>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+            <h2>🔥 {{ streak.current_streak }}</h2>
+            <p>Day Streak</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <h2>{{ completed_today }}/{{ total_habits }}</h2>
+            <p>Completed Today</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+            <h2>{{ completion_rate }}%</h2>
+            <p>7-Day Rate</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+            <h2>🏆 {{ streak.longest_streak }}</h2>
+            <p>Best Streak</p>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Progress Bar -->
+<!-- <div class="progress-card">
+    <h4 class="mb-3">Today's Overall Progress</h4>
+    <div class="progress progress-bar-custom mb-3">
+        {% widthratio completed_today total_habits 100 as progress_percent %}
+        <div class="progress-bar bg-success" role="progressbar" 
+             style="width: {{ progress_percent }}%"
+             aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+            {{ progress_percent }}%
+        </div>
+    </div>
+    <p class="text-muted mb-0">{{ today|date:"F d, Y" }}</p>
+</div> -->
+
+<!-- Habits Checklist -->
+<div class="progress-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">✅ Today's Habits Checklist</h4>
+        <a href="{% url 'progress_history' report_id=blood_report.id %}" class="btn btn-sm btn-outline-primary">
+            📅 View History
+        </a>
+    </div>
+    
+    {% for habit in habits_list %}
+        {% with progress=today_progress|get_item:habit %}
+        <div class="habit-item {% if progress and progress.completed %}completed{% endif %}">
+            <form method="post" class="habit-form">
+                {% csrf_token %}
+                <input type="hidden" name="habit_id" value="{{ habit }}">
+                
+                <div class="d-flex align-items-start gap-3">
+                    <input type="checkbox" 
+                           name="completed" 
+                           class="habit-checkbox form-check-input mt-1"
+                           {% if progress and progress.completed %}checked{% endif %}
+                           onchange="this.form.submit()">
+                    
+                    <div class="flex-grow-1">
+                        <strong>{{ habit }}</strong>
+                        
+                        {% if progress and progress.notes %}
+                            <p class="mb-0 mt-2 text-muted small">
+                                <em>Note: {{ progress.notes }}</em>
+                            </p>
+                        {% endif %}
+                        
+                        <!-- Notes section (collapsible) -->
+                        <div class="mt-2">
+                            <a data-bs-toggle="collapse" href="#notes-{{ forloop.counter }}" class="text-muted small">
+                                Add/Edit Notes
+                            </a>
+                            <div class="collapse mt-2" id="notes-{{ forloop.counter }}">
+                                <textarea name="notes" class="form-control form-control-sm" rows="2" 
+                                          placeholder="Optional notes...">{% if progress %}{{ progress.notes }}{% endif %}</textarea>
+                                <button type="submit" class="btn btn-sm btn-primary mt-2">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endwith %}
+    {% empty %}
+        <p class="text-muted">No habits to track. Please generate recommendations first.</p>
+    {% endfor %}
+</div>
+
+<!-- Action Buttons -->
+<div class="text-center mt-4">
+    <a href="{% url 'generate_recommendations' report_id=blood_report.id %}" class="btn btn-outline-secondary me-2">
+        ← Back to Recommendations
+    </a>
+    <a href="{% url 'report_list' %}" class="btn btn-primary">
+        📁 My Reports
+    </a>
+</div>
+{% endblock %}
