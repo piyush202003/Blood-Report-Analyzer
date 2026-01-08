@@ -20,8 +20,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'analyzer',  # Our app
 ]
+EXTERNAL_APPS = [
+    'accounts',
+    'analyzer',
+]
+INSTALLED_APPS += EXTERNAL_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -84,6 +88,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Gemini API Key
 GEMINI_API_KEY = os.getenv('GOOGLE_API_KEY')
+MODEL_NAME = os.getenv("MODEL")
 
 # At the end of settings.py
 

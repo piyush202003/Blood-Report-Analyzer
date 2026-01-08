@@ -17,6 +17,37 @@ class BloodReport(models.Model):
     class Meta:
         ordering = ['-uploaded_at']
 
+class BloodParameter(models.Model):
+    CATEGORY_CHOICES = [
+        ("CBC", "Complete Blood Count"),
+        ("DIFF", "Differential Count"),
+    ]
+
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES)
+    common_names = models.CharField(
+        max_length=200,
+        help_text="Comma-separated aliases like Hb,HGB"
+    )
+    unit = models.CharField(max_length=20, blank=True)
+    normal_min = models.FloatField(null=True, blank=True)
+    normal_max = models.FloatField(null=True, blank=True)
+
+    def aliases(self):
+        return [x.strip().lower() for x in self.common_names.split(",")]
+
+    def __str__(self):
+        return self.name
+
+class BloodReportValue(models.Model):
+    report = models.ForeignKey(BloodReport, on_delete=models.CASCADE)
+    parameter = models.ForeignKey(BloodParameter, on_delete=models.CASCADE)
+    value = models.FloatField()
+    unit = models.CharField(max_length=20, blank=True)
+
+    def __str__(self):
+        return f"{self.parameter.name}: {self.value}"
+
 
 class AllergyInfo(models.Model):
     blood_report = models.OneToOneField(BloodReport, on_delete=models.CASCADE, related_name='allergy_info')

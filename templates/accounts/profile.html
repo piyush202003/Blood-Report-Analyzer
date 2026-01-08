@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Patient Profile - Blood Health Advisor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <div class="card shadow border-0">
+            <div class="card-header py-3 text-center">
+                <h4 class="mb-0">👤 Medical Identity Profile</h4>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="section-header">General Information</h5>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">FULL NAME</label>
+                                <input type="text" name="full_name" value="{{ profile.full_name|default:'' }}" class="form-control bg-dark text-white border-secondary" placeholder="John Doe">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">DATE OF BIRTH</label>
+                                <input type="date" name="dob" value="{{ profile.dob|date:'Y-m-d' }}" class="form-control bg-dark text-white border-secondary custom-date-input">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">GENDER</label>
+                                <select name="gender" class="form-select bg-dark text-white border-secondary">
+                                    <option value="" disabled>Select Gender</option>
+                                    <option value="M" {% if profile.gender == "M" %}selected{% endif %}>Male</option>
+                                    <option value="F" {% if profile.gender == "F" %}selected{% endif %}>Female</option>
+                                    <option value="O" {% if profile.gender == "O" %}selected{% endif %}>Other</option>
+                                </select>
+
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">PHONE NUMBER</label>
+                                <input type="tel" name="phone_number" value="{{ profile.phone_number|default:'' }}" class="form-control bg-dark text-white border-secondary" placeholder="+1 234 567 890">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h5 class="section-header">Medical Details</h5>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">BLOOD GROUP</label>
+                                <select name="blood_group" class="form-select bg-dark text-white border-secondary">
+                                    <option value="" disabled>Select Type</option>
+                                    {% for value, label in blood_groups %}
+                                        <option value="{{ value }}" {% if profile.blood_group == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">ALLERGIES</label>
+                                <textarea name="allergies" rows="1" class="form-control bg-dark text-white border-secondary" placeholder="List any allergies">{{ profile.allergies|default:'' }}</textarea>
+                                <div class="form-text text-info small">Hint: Peanuts, Groundnuts, Penicillin, etc.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">MEDICAL CONDITIONS</label>
+                                <textarea name="medical_conditions" rows="1" class="form-control bg-dark text-white border-secondary" placeholder="Current health conditions">{{ profile.medical_conditions|default:'' }}</textarea>
+                                <div class="form-text text-info small">Hint: Asthma, Diabetes, Hypertension, etc.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">RESIDENTIAL ADDRESS</label>
+                                <input type="text" name="address" value="{{ profile.address|default:'' }}" class="form-control bg-dark text-white border-secondary" placeholder="123 Health St.">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 p-3 bg-dark rounded border border-secondary">
+                        <span class="text-muted">Current Age based on DOB:</span>
+                        <span class="badge bg-primary text-dark fs-6">
+                            {% if profile.dob %}
+                                {{ profile.age }} Years Old
+                            {% else %}
+                                Not set
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold">Update Medical Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Styling for the Date Picker icon and behavior */
+    .custom-date-input::-webkit-calendar-picker-indicator {
+        filter: invert(1) sepia(100%) saturate(500%) hue-rotate(140deg);
+        cursor: pointer;
+    }
+
+    .form-control, .form-select {
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        background-color: #2a2d2d !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 8px rgba(50, 184, 198, 0.2);
+    }
+
+    .section-header {
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-top: 1rem;
+    }
+
+    textarea {
+        resize: none;
+    }
+</style>
+{% endblock %}

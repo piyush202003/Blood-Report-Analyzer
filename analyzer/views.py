@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
-from .models import BloodReport, AllergyInfo, HealthRecommendation
+from .models import *
 from .forms import (
     BloodReportUploadForm, 
     AllergyForm, 
@@ -15,11 +15,73 @@ from .gemini_service import (
     analyze_blood_report,
     get_quick_summary
 )
+from analyzer.utils.report_parser import extract_values_from_text
 
+@login_required
+def dashboard(request):
+    user = request.user
+    reports = BloodReport.objects.filter(user=user)
+
+    if not reports.exists():
+        return render(request, "analyzer/dashboard.html", {"no_reports": True})
+
+    latest_report = reports.first()
+    latest_values = BloodReportValue.objects.filter(report=latest_report).select_related('parameter')
+
+    if not latest_values.exists():
+        return render(request, "analyzer/dashboard.html", {"no_values": True})
+
+    # --- NEW: Fetch Streak & Recommendation for the Dashboard ---
+    streak = ProgressStreak.objects.filter(user=user, blood_report=latest_report).first()
+    
+    # We want to show a snippet of recommendations
+    recommendation = HealthRecommendation.objects.filter(blood_report=latest_report).first()
+
+    # Progress data (Your existing chart logic)
+    progress_data = {}
+    all_values = (
+        BloodReportValue.objects
+        .filter(report__user=user)
+        .select_related("parameter", "report")
+        .order_by("report__uploaded_at")
+    )
+
+    for val in all_values:
+        param_name = val.parameter.name
+        if param_name not in progress_data:
+            progress_data[param_name] = {
+                "dates": [],
+                "values": [],
+                "unit": val.unit,
+                "min": val.parameter.normal_min, # Added for Chart Annotations
+                "max": val.parameter.normal_max  # Added for Chart Annotations
+            }
+        progress_data[param_name]["dates"].append(val.report.uploaded_at.strftime("%Y-%m-%d"))
+        progress_data[param_name]["values"].append(val.value)
+
+        today = date.today()
+        daily_habits = HabitProgress.objects.filter(
+            user=user, 
+            blood_report=latest_report, 
+            date=today
+        )
+
+    return render(request, "analyzer/dashboard.html", {
+        "latest_values": latest_values,
+        "progress_data": progress_data,
+        "streak": streak,
+        "recommendation": recommendation,
+        "latest_report": latest_report,
+        "no_reports": False,
+        "no_values": False,
+        "daily_habits": daily_habits
+    })
 
 def home(request):
     """Home page"""
-    return render(request, 'analyzer/home.html')
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    return render(request, "analyzer/home.html")
 
 
 # Authentication Views
@@ -92,6 +154,8 @@ def upload_report(request):
                 return redirect('upload_report')
             
             blood_report.save()
+            
+            extract_values_from_text(blood_report)
             messages.success(request, 'Blood report uploaded successfully!')
             return redirect('allergy_info', report_id=blood_report.id)
     else:
