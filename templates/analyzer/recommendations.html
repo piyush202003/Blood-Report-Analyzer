@@ -570,20 +570,11 @@
     </button>
 </div>
 
-
-<!-- Floating Print Button -->
-<button onclick="window.print()" class="btn btn-info print-btn shadow" title="Print Report">
-    🖨️
-</button>
-
-<a href="{% url 'progress_tracker' report_id=blood_report.id %}" class="btn btn-success btn-lg">
-    📊 Track Progress
-</a>
-
+{% comment %} Chat bot assistant {% endcomment %}
 <div class="glass-card mt-5 p-4">
-    <h5 class="fw-bold mb-3" style="color: var(--primary-color);">
+    <h4 class="fw-bold mb-3" style="color: var(--primary-color);">
         <i class="bi bi-robot me-2"></i>Report Assistant
-    </h5>
+    </h4>
     
     <div id="chat-box" class="mb-3 p-3" style="height: 350px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 10px;">
         <div class="text-start mb-3">
