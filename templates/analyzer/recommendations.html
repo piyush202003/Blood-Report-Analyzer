@@ -580,9 +580,94 @@
     📊 Track Progress
 </a>
 
+<div class="glass-card mt-5 p-4">
+    <h5 class="fw-bold mb-3" style="color: var(--primary-color);">
+        <i class="bi bi-robot me-2"></i>Report Assistant
+    </h5>
+    
+    <div id="chat-box" class="mb-3 p-3" style="height: 350px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 10px;">
+        <div class="text-start mb-3">
+            <div class="p-2 d-inline-block rounded shadow-sm" style="background: var(--surface-color); border: 1px solid var(--primary-color);">
+                Hello! I've analyzed your report. You can ask me about your levels or dietary suggestions.
+            </div>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="user-input" class="form-control bg-dark text-white border-secondary" 
+               placeholder="Why is my Hemoglobin high?" onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button class="btn btn-primary" type="button" id="send-btn" onclick="sendMessage()">
+            <span id="btn-text">Send</span>
+            <span id="btn-spinner" class="spinner-border spinner-border-sm d-none"></span>
+        </button>
+    </div>
+</div>
 
 <script>
-// Smooth scroll to top
+function sendMessage() {
+    const input = document.getElementById('user-input');
+    const chatBox = document.getElementById('chat-box');
+    const sendBtn = document.getElementById('send-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnSpinner = document.getElementById('btn-spinner');
+    
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    // 1. Show User Message
+    chatBox.innerHTML += `
+        <div class="text-end mb-3">
+            <div class="p-2 d-inline-block rounded bg-primary text-dark fw-bold">${msg}</div>
+        </div>`;
+    
+    input.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // 2. Show Loading State
+    sendBtn.disabled = true;
+    btnText.classList.add('d-none');
+    btnSpinner.classList.remove('d-none');
+
+    // 3. AJAX Request
+    // Note: Ensure report_id is available in your template context
+    const reportId = "{{ blood_report.id }}"; 
+    
+    fetch(`/report/${reportId}/chat/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ message: msg })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+    })
+    .then(data => {
+        // 4. Show AI Response
+        chatBox.innerHTML += `
+            <div class="text-start mb-3">
+                <div class="p-2 d-inline-block rounded" style="background: var(--surface-color); border: 1px solid rgba(255,255,255,0.1);">
+                    ${data.response}
+                </div>
+            </div>`;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        chatBox.innerHTML += `<div class="text-center text-danger small">Error connecting to assistant.</div>`;
+    })
+    .finally(() => {
+        // 5. Reset Button
+        sendBtn.disabled = false;
+        btnText.classList.remove('d-none');
+        btnSpinner.classList.add('d-none');
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+}
+</script>
+
+<script>
 window.scrollTo({ top: 0, behavior: 'smooth' });
 </script>
 {% endblock %}

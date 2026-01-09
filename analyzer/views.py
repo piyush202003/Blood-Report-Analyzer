@@ -16,6 +16,9 @@ from .gemini_service import (
     get_quick_summary
 )
 from analyzer.utils.report_parser import extract_values_from_text
+import json
+from django.http import JsonResponse
+from .gemini_service import client
 
 @login_required
 def dashboard(request):
@@ -79,8 +82,8 @@ def dashboard(request):
 
 def home(request):
     """Home page"""
-    if request.user.is_authenticated:
-        return redirect("dashboard")
+    # if request.user.is_authenticated:
+    #     return redirect("dashboard")
     return render(request, "analyzer/home.html")
 
 
@@ -163,6 +166,41 @@ def upload_report(request):
     
     return render(request, 'analyzer/upload_report.html', {'form': form})
 
+from django.conf import settings
+@login_required
+def chat_with_report(request, report_id):
+    if request.method == "POST":
+        report = get_object_or_404(BloodReport, id=report_id, user=request.user)
+        data = json.loads(request.body)
+        user_query = data.get('message')
+
+        # 1. Prepare Context
+        values = BloodReportValue.objects.filter(report=report)
+        metrics_summary = ", ".join([f"{v.parameter.name}: {v.value} {v.unit}" for v in values])
+        
+        # 2. Build the System Prompt
+        system_prompt = f"""
+        You are a helpful medical lab assistant. 
+        The patient's blood report results are: {metrics_summary}.
+        Rules: 
+        1. Answer based ONLY on these results. 
+        2. If they ask for a diagnosis, tell them to consult a doctor. 
+        3. Keep answers concise and supportive.
+        """
+
+        # 3. Call Gemini
+        response = client.models.generate_content(
+            model=settings.MODEL_NAME,
+            contents=[system_prompt, user_query]
+        )
+        
+        bot_response = response.text
+
+        # 4. Save to Database
+        ChatMessage.objects.create(user=request.user, blood_report=report, message=user_query, is_bot=False)
+        ChatMessage.objects.create(user=request.user, blood_report=report, message=bot_response, is_bot=True)
+
+        return JsonResponse({'response': bot_response})
 
 @login_required
 def allergy_info(request, report_id):

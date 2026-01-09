@@ -15,6 +15,7 @@ urlpatterns = [
     path('allergy/<int:report_id>/', views.allergy_info, name='allergy_info'),
     path('recommendations/<int:report_id>/', views.generate_recommendations, name='generate_recommendations'),
     path('reports/', views.report_list, name='report_list'),
+    path('report/<int:report_id>/chat/', views.chat_with_report, name='chat_with_report'),
 
     # Progress Tracker
     path('progress/<int:report_id>/', views.progress_tracker, name='progress_tracker'),
