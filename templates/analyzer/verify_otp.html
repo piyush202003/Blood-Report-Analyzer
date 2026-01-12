@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="glass-card p-4 text-center">
+            <h3 class="fw-bold mb-3">Verify Your Email</h3>
+            <p class="text-muted small">We've sent a 6-digit code to your email address.</p>
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold" 
+                           placeholder="000000" maxlength="6" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Verify Account</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,11 @@ from analyzer.utils.report_parser import extract_values_from_text
 import json
 from django.http import JsonResponse
 from .gemini_service import client
+from django.conf import settings
+from django.core.mail import send_mail
+import random
+from datetime import date, datetime
+from django.utils import timezone
 
 @login_required
 def dashboard(request):
@@ -49,6 +54,13 @@ def dashboard(request):
         .order_by("report__uploaded_at")
     )
 
+    today = date.today()
+    daily_habits = HabitProgress.objects.filter(
+        user=user, 
+        blood_report=latest_report, 
+        date=today
+    )
+
     for val in all_values:
         param_name = val.parameter.name
         if param_name not in progress_data:
@@ -62,12 +74,7 @@ def dashboard(request):
         progress_data[param_name]["dates"].append(val.report.uploaded_at.strftime("%Y-%m-%d"))
         progress_data[param_name]["values"].append(val.value)
 
-        today = date.today()
-        daily_habits = HabitProgress.objects.filter(
-            user=user, 
-            blood_report=latest_report, 
-            date=today
-        )
+        
 
     return render(request, "analyzer/dashboard.html", {
         "latest_values": latest_values,
@@ -86,25 +93,97 @@ def home(request):
     #     return redirect("dashboard")
     return render(request, "analyzer/home.html")
 
-
-# Authentication Views
 def register_view(request):
-    """User registration"""
     if request.user.is_authenticated:
         return redirect('home')
     
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, f'Welcome {user.username}! Your account has been created.')
-            return redirect('home')
+            user_data = form.cleaned_data
+            
+            # FIX: UserRegisterForm/UserCreationForm uses 'password1' 
+            # Check your forms.py to confirm the field name
+            password = user_data.get('password') or user_data.get('password1')
+            
+            otp = str(random.randint(100000, 999999))
+            
+            request.session['registration_data'] = {
+                'username': user_data['username'],
+                'email': user_data['email'],
+                'password': password, 
+                'otp': otp,
+                'otp_created_at': timezone.now().timestamp()
+            }
+
+            try:
+                send_mail(
+                    'Verify your Blood Health account',
+                    f'Your verification code is: {otp}',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user_data['email']],
+                    fail_silently=False,
+                )
+                messages.success(request, "Please check your email for the verification code.")
+                return redirect('verify_otp')
+            except Exception as e:
+                print(f"Email Error: {e}")
+                messages.error(request, "Error sending email. Please check your connection.")
     else:
         form = UserRegisterForm()
     
     return render(request, 'analyzer/register.html', {'form': form})
 
+def verify_otp(request):
+    reg_data = request.session.get('registration_data')
+    
+    if not reg_data:
+        messages.error(request, "Registration session expired. Please register again.")
+        return redirect('register_view')
+
+    if request.method == 'POST':
+        user_otp = request.POST.get('otp')
+        
+        # 1. Check Expiration (e.g., 10 minutes = 600 seconds)
+        otp_time = float(reg_data.get('otp_created_at')) 
+            
+        # Check if 10 minutes (600 seconds) have passed
+        if timezone.now().timestamp() - otp_time > 600:
+            del request.session['registration_data']
+            messages.error(request, "OTP expired. Please try again.")
+            return redirect('register_view')
+
+        # 2. Check if OTP matches
+        if reg_data['otp'] == user_otp:
+            from django.contrib.auth.models import User
+            
+            # 3. Check if user already exists (safety check)
+            if User.objects.filter(username=reg_data['username']).exists():
+                messages.error(request, "Username already taken.")
+                return redirect('register_view')
+
+            # 4. Create User
+            new_user = User.objects.create_user(
+                username=reg_data['username'],
+                email=reg_data['email'],
+                password=reg_data['password'] # create_user handles the hashing
+            )
+            
+            # 5. Create Profile
+            profile, created = Profile.objects.get_or_create(user=new_user)
+            profile.is_verified = True
+            profile.save()
+
+            # 6. Clear session and log the user in immediately (optional but better UX)
+            del request.session['registration_data']
+            login(request, new_user)
+            
+            messages.success(request, 'Account verified and logged in!')
+            return redirect('home')
+        else:
+            messages.error(request, "Invalid OTP. Please try again.")
+            
+    return render(request, 'analyzer/verify_otp.html')
 
 def login_view(request):
     """User login"""
@@ -166,7 +245,7 @@ def upload_report(request):
     
     return render(request, 'analyzer/upload_report.html', {'form': form})
 
-from django.conf import settings
+
 @login_required
 def chat_with_report(request, report_id):
     if request.method == "POST":

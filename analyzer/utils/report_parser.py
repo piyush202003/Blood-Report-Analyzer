@@ -1,6 +1,7 @@
 import re
 from analyzer.models import BloodParameter, BloodReportValue
 from google import genai
+# import google.generativeai as genai
 from django.conf import settings
 
 def normalize_text(text: str) -> str:

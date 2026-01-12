@@ -1,6 +1,8 @@
 Django==4.2.7
 Pillow==10.1.0
+pytesseract
 google-generativeai==0.3.2
+google-genai
 PyPDF2==3.0.1
 python-dotenv==1.0.0
 weasyprint==60.1

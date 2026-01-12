@@ -2,6 +2,19 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+import random
+from datetime import timedelta
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    otp = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
+
+    def is_otp_valid(self):
+        # OTP is valid for 10 minutes
+        if self.otp_created_at:
+            return timezone.now() < self.otp_created_at + timedelta(minutes=10)
+        return False
 
 
 class BloodReport(models.Model):
