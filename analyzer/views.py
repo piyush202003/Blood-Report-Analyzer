@@ -88,7 +88,6 @@ def dashboard(request):
     })
 
 def home(request):
-    """Home page"""
     # if request.user.is_authenticated:
     #     return redirect("dashboard")
     return render(request, "analyzer/home.html")
@@ -101,9 +100,7 @@ def register_view(request):
         form = UserRegisterForm(request.POST)
         if form.is_valid():
             user_data = form.cleaned_data
-            
-            # FIX: UserRegisterForm/UserCreationForm uses 'password1' 
-            # Check your forms.py to confirm the field name
+        
             password = user_data.get('password') or user_data.get('password1')
             
             otp = str(random.randint(100000, 999999))
