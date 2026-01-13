@@ -5,6 +5,7 @@
 # Prerequisite 
 - Download and install python
 - Download all the libraries listed in the requirements.txt file
+- After installing the requirements also download tessaract ocr from the github and install it the PC.
 - Then create .env file and add below variables with exact name:
     1. GOOGLE_API_KEY(your gemini api key)
     2. MODEL(your gemnini model name e.g. gemini-2.5-flash)
@@ -15,11 +16,15 @@
 # Next Step
 - After doing prerequisites steps Next is for database creation
 - Go in the Folder of the project where manage.py file is present and open the terminal
+    `cd blood_health_advisor`
 - Run this code: 
-> python manage.py makemigations
-> python manage.py migrate
-
-`cd blood_health_advisor`
+    ```bash
+    python manage.py makemigrations
+    python manage.py migrate
+    ```
+---
+- Lastly after doing all those steps run the django file by using this code: 
 `python manage.py runserver`
+- You will get the link and then run it on http://localhost:8000
 
 
