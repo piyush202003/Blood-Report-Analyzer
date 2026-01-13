@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 - This is used to handle and activate the vertual environment
     `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
     `& "F:/mini project/.venv/Scripts/Activate.ps1"`
@@ -28,3 +29,12 @@
 - You will get the link and then run it on http://localhost:8000
 
 
+=======
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+
+& "F:/mini project/venv/Scripts/Activate.ps1"
+
+cd blood_health_advisor
+
+python manage.py runserver
+>>>>>>> 24a6117835d35090d676e2d899d0c37021c45de3
