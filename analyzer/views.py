@@ -375,145 +375,163 @@ def report_list(request):
 from datetime import date, timedelta
 from django.db.models import Count, Q
 from .models import HabitProgress, ProgressStreak
+import re
+
+def extract_habits(habits_text):
+    """
+    Extract habits from numbered or bulleted AI output
+    """
+    habits = []
+
+    for line in habits_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        # Remove numbering: 1. , 1) , etc.
+        line = re.sub(r'^\d+[\.\)]\s*', '', line)
+
+        # Remove bullet symbols
+        for bullet in ['-', '•', '*']:
+            if line.startswith(bullet):
+                line = line.lstrip(bullet).strip()
+
+        # Remove trailing explanation
+        if ':' in line:
+            line = line.split(':')[0].strip()
+
+        # Remove trailing dot
+        line = line.rstrip('.').strip()
+
+        if len(line) > 3:
+            habits.append(line)
+
+    # Remove duplicates while preserving order
+    return list(dict.fromkeys(habits))
+
 
 @login_required
 def progress_tracker(request, report_id):
-    """Track daily habit completion"""
-    blood_report = get_object_or_404(BloodReport, id=report_id, user=request.user)
-    
+    blood_report = get_object_or_404(
+        BloodReport, id=report_id, user=request.user
+    )
+
     try:
         recommendation = blood_report.recommendation
     except HealthRecommendation.DoesNotExist:
-        messages.error(request, 'Please generate recommendations first.')
+        messages.error(request, "Please generate recommendations first.")
         return redirect('generate_recommendations', report_id=report_id)
-    
-    # Extract habits from recommendation
-    habits_text = recommendation.daily_habits
-    habits_list = []
-    
-    for line in habits_text.split('\n'):
-        line = line.strip()
-        if line and line.startswith('-'):
-            habit = line.lstrip('- ').strip()
-            if habit and ':' in habit:
-                habit = habit.split(':')[0].strip()
-                habits_list.append(habit)
-    
-    # Get today's date
+
+    # ✅ Extract habits safely
+    habits_list = extract_habits(recommendation.daily_habits)
+
+    if not habits_list:
+        messages.error(request, "No daily habits found in recommendations.")
+        return redirect('generate_recommendations', report_id=report_id)
+
     today = date.today()
-    
-    # Get or create today's progress for each habit
-    if request.method == 'POST':
-        habit_id = request.POST.get('habit_id')
-        completed = request.POST.get('completed') == 'on'
-        notes = request.POST.get('notes', '')
-        
-        if habit_id:
-            progress, created = HabitProgress.objects.get_or_create(
+
+    # ✅ Handle POST
+    if request.method == "POST":
+        habit_text = request.POST.get("habit_text")
+        completed = request.POST.get("completed") == "on"
+        notes = request.POST.get("notes", "")
+
+        if habit_text:
+            progress, _ = HabitProgress.objects.get_or_create(
                 blood_report=blood_report,
                 user=request.user,
-                habit_text=habit_id,
-                date=today,
-                defaults={'completed': completed, 'notes': notes}
-            )
-            
-            if not created:
-                progress.completed = completed
-                progress.notes = notes
-                progress.save()
-            
-            # Update streak
-            update_streak(request.user, blood_report)
-            
-            messages.success(request, 'Progress updated!')
-            return redirect('progress_tracker', report_id=report_id)
-    
-    # Get today's progress
-    today_progress = {}
-    for habit in habits_list:
-        try:
-            progress = HabitProgress.objects.get(
-                blood_report=blood_report,
-                user=request.user,
-                habit_text=habit,
+                habit_text=habit_text,
                 date=today
             )
-            today_progress[habit] = progress
-        except HabitProgress.DoesNotExist:
-            today_progress[habit] = None
-    
-    # Get streak info
+            progress.completed = completed
+            progress.notes = notes
+            progress.save()
+
+            # Update streak only if all habits exist today
+            today_entries = HabitProgress.objects.filter(
+                blood_report=blood_report,
+                user=request.user,
+                date=today
+            )
+            if today_entries.count() == len(habits_list):
+                update_streak(request.user, blood_report)
+
+            messages.success(request, "Progress updated!")
+            return redirect("progress_tracker", report_id=report_id)
+
+    # ✅ Fetch today's progress
+    today_progress = {
+        habit: HabitProgress.objects.filter(
+            blood_report=blood_report,
+            user=request.user,
+            habit_text=habit,
+            date=today
+        ).first()
+        for habit in habits_list
+    }
+
     streak, _ = ProgressStreak.objects.get_or_create(
         user=request.user,
         blood_report=blood_report
     )
-    
-    # Calculate completion rate for last 7 days
-    last_7_days = date.today() - timedelta(days=7)
-    recent_progress = HabitProgress.objects.filter(
+
+    # ✅ Accurate completion rate (last 7 days)
+    last_7_days = today - timedelta(days=7)
+    recent = HabitProgress.objects.filter(
         blood_report=blood_report,
         user=request.user,
         date__gte=last_7_days
     )
-    
-    total_habits_last_week = len(habits_list) * 7
-    completed_habits_last_week = recent_progress.filter(completed=True).count()
-    completion_rate = (completed_habits_last_week / total_habits_last_week * 100) if total_habits_last_week > 0 else 0
-    
-    context = {
-        'blood_report': blood_report,
-        'recommendation': recommendation,
-        'habits_list': habits_list,
-        'today_progress': today_progress,
-        'today': today,
-        'streak': streak,
-        'completion_rate': round(completion_rate, 1),
-        'completed_today': sum(1 for p in today_progress.values() if p and p.completed),
-        'total_habits': len(habits_list)
-    }
-    
-    return render(request, 'analyzer/progress_tracker.html', context)
 
+    total_logged = recent.count()
+    completed = recent.filter(completed=True).count()
+    completion_rate = round((completed / total_logged) * 100, 1) if total_logged else 0
+
+    context = {
+        "blood_report": blood_report,
+        "habits_list": habits_list,
+        "today_progress": today_progress,
+        "streak": streak,
+        "today": today,
+        "completion_rate": completion_rate,
+        "completed_today": sum(
+            1 for p in today_progress.values() if p and p.completed
+        ),
+        "total_habits": len(habits_list),
+    }
+
+    return render(request, "analyzer/progress_tracker.html", context)
 
 def update_streak(user, blood_report):
-    """Update user's habit completion streak"""
     streak, _ = ProgressStreak.objects.get_or_create(
         user=user,
         blood_report=blood_report
     )
-    
+
     today = date.today()
     yesterday = today - timedelta(days=1)
-    
-    # Get habits for today
-    today_habits = HabitProgress.objects.filter(
+
+    # Reset streak if user skipped days
+    if streak.last_activity_date < yesterday:
+        streak.current_streak = 0
+
+    today_entries = HabitProgress.objects.filter(
         blood_report=blood_report,
         user=user,
         date=today
     )
-    
-    # Check if all habits completed today
-    total_habits = today_habits.count()
-    completed_habits = today_habits.filter(completed=True).count()
-    
-    if total_habits > 0 and completed_habits == total_habits:
-        # All habits completed today
+
+    if today_entries.exists() and not today_entries.filter(completed=False).exists():
         if streak.last_activity_date == yesterday:
-            # Continue streak
             streak.current_streak += 1
         else:
-            # Start new streak
             streak.current_streak = 1
-        
-        streak.last_activity_date = today
-        streak.total_habits_completed += completed_habits
-        
-        # Update longest streak
-        if streak.current_streak > streak.longest_streak:
-            streak.longest_streak = streak.current_streak
-        
-        streak.save()
 
+        streak.last_activity_date = today
+        streak.total_habits_completed += today_entries.count()
+        streak.longest_streak = max(streak.longest_streak, streak.current_streak)
+        streak.save()
 
 @login_required
 def progress_history(request, report_id):
