@@ -25,6 +25,7 @@ import random
 from datetime import date, datetime
 from django.utils import timezone
 
+from itertools import islice
 @login_required
 def dashboard(request):
     user = request.user
@@ -39,13 +40,10 @@ def dashboard(request):
     if not latest_values.exists():
         return render(request, "analyzer/dashboard.html", {"no_values": True})
 
-    # --- NEW: Fetch Streak & Recommendation for the Dashboard ---
     streak = ProgressStreak.objects.filter(user=user, blood_report=latest_report).first()
     
-    # We want to show a snippet of recommendations
     recommendation = HealthRecommendation.objects.filter(blood_report=latest_report).first()
 
-    # Progress data (Your existing chart logic)
     progress_data = {}
     all_values = (
         BloodReportValue.objects
@@ -68,13 +66,13 @@ def dashboard(request):
                 "dates": [],
                 "values": [],
                 "unit": val.unit,
-                "min": val.parameter.normal_min, # Added for Chart Annotations
-                "max": val.parameter.normal_max  # Added for Chart Annotations
+                "min": val.parameter.normal_min,
+                "max": val.parameter.normal_max
             }
         progress_data[param_name]["dates"].append(val.report.uploaded_at.strftime("%Y-%m-%d"))
         progress_data[param_name]["values"].append(val.value)
 
-        
+    
 
     return render(request, "analyzer/dashboard.html", {
         "latest_values": latest_values,

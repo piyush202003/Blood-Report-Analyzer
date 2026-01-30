@@ -60,6 +60,36 @@ class BloodReportValue(models.Model):
 
     def __str__(self):
         return f"{self.parameter.name}: {self.value}"
+    
+    @property
+    def position_percentage(self):
+        if not self.parameter.normal_min or not self.parameter.normal_max:
+            return 0
+
+        min_val = self.parameter.normal_min
+        max_val = self.parameter.normal_max
+
+        if max_val <= min_val:
+            return 0
+
+        percent = ((self.value - min_val) / (max_val - min_val)) * 100
+
+        return max(0, min(round(percent), 100))
+    
+    @property
+    def status(self):
+        min_val = self.parameter.normal_min
+        max_val = self.parameter.normal_max
+
+        if min_val is None or max_val is None:
+            return "Unknown"
+
+        if self.value < min_val:
+            return "Low"
+        elif self.value > max_val:
+            return "High"
+        else:
+            return "Normal"
 
 
 class AllergyInfo(models.Model):
