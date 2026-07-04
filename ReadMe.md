@@ -8,7 +8,6 @@
     4. EMAIL_HOST_PASSWORD( it is the 16 digit password of the app )
 - Then go to the folder or project where manage.py is present
 - Then start the project by using below commands on terminal:
-    ```
+    ```bash 
     python manage.py runserver
     ```
-
